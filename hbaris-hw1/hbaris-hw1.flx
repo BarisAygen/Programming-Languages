@@ -1,0 +1,90 @@
+%{
+
+int noLines = 1;
+int inBlockComment = 0;
+
+%}
+
+tENDMAIL end" "*Mail
+tENDSCHEDULE end" "*schedule
+tSEND send
+tFROM from
+tSCHEDULE schedule
+tTO to
+tSET set
+tMAIL Mail
+tCOMMA ,
+tCOLON :
+tAT @
+tLPR "("
+tRPR ")"
+tLBR "["
+tRBR "]"
+tIDENT [a-zA-Z_]+[a-zA-Z0-9_]*
+tSTRING \"[^"]*\"
+tADDRESS [a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9_-]+)*@[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?){1,2}
+tDATE ([0-9]{2}\.[0-9]{2}\.[0-9]{4})|([0-9]{2}\/[0-9]{2}\/[0-9]{4})|([0-9]{2}\-[0-9]{2}\-[0-9]{4})
+tTIME [0-9]{2}:[0-9]{2}
+tLINECOMMENT \/{2}[^\n]*
+tBLOCKCOMMENT \/\*([^*]|\*[^/])*\*\/
+_ILLEGAL_CHARACTER_ [^a-zA-Z0-9_\t\n ]
+
+%%
+
+{tENDMAIL}  printf("%d_tENDMAIL\n", noLines);
+{tENDSCHEDULE} printf("%d_tENDSCHEDULE\n", noLines);
+{tSEND}     printf("%d_tSEND\n", noLines);
+{tFROM}     printf("%d_tFROM\n", noLines);
+{tSCHEDULE} printf("%d_tSCHEDULE\n", noLines);
+{tTO}       printf("%d_tTO\n", noLines);
+{tSET}      printf("%d_tSET\n", noLines);
+{tMAIL}     printf("%d_tMAIL\n", noLines);
+{tCOMMA}    printf("%d_tCOMMA\n", noLines);
+{tCOLON}    printf("%d_tCOLON\n", noLines);
+{tAT}       printf("%d_tAT\n", noLines);
+{tLPR}      printf("%d_tLPR\n", noLines);
+{tRPR}      printf("%d_tRPR\n", noLines);
+{tLBR}      printf("%d_tLBR\n", noLines);
+{tRBR}      printf("%d_tRBR\n", noLines);
+{tSTRING} {
+    printf("%d_tSTRING (%.*s)\n", noLines, (int)(strlen(yytext) - 2), yytext + 1);
+    int block_comment_length = strlen(yytext);
+    char* newline_position = yytext;
+    while ((newline_position = memchr(newline_position, '\n', block_comment_length - (newline_position - yytext)))) {
+        ++noLines;
+        ++newline_position;
+    }
+}
+{tADDRESS}  printf("%d_tADDRESS_(%s)\n", noLines, yytext);
+{tDATE}     printf("%d_tDATE_(Day_%.*s_Month_%.*s_Year_%.*s)\n", noLines, (int)(strlen(yytext) - 8), yytext, (int)(strlen(yytext) - 8), yytext + 3, (int)(strlen(yytext) - 4), yytext + 6);
+{tTIME}     printf("%d_tTIME_(Hour_%.*s_Minute_%.*s)\n", noLines, (int)(strlen(yytext) - 3), yytext, (int)(strlen(yytext) - 1), yytext + 3);
+{tIDENT}     printf("%d_tIDENT_(%s)\n", noLines, yytext);
+{_ILLEGAL_CHARACTER_}   printf("%d_ILLEGAL_CHARACTER_(%s)\n", noLines, yytext);
+{tLINECOMMENT} ;
+{tBLOCKCOMMENT} {
+    if (!inBlockComment) {
+        inBlockComment = 1;
+    }
+    int block_comment_length = strlen(yytext);
+    char* newline_position = yytext;
+    while ((newline_position = memchr(newline_position, '\n', block_comment_length - (newline_position - yytext)))) {
+        ++noLines;
+        ++newline_position;
+    }
+}
+
+"*/" {
+    if (!inBlockComment) {
+    } else {
+        inBlockComment = 0;
+    }
+}
+\n noLines++;
+. ;
+
+%%
+
+int main(){
+    yylex();
+    return(0);
+}
